@@ -76,12 +76,19 @@ NSTimeInterval const PFEventuallyQueueDefaultTimeoutRetryInterval = 600.0f;
     _testHelper = [[PFEventuallyQueueTestHelper alloc] init];
 
     [self _startMonitoringNetworkReachability];
+    
+    #if TARGET_OS_WATCH
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(manualStartSync) name:@"PFManullyStartSyncing" object:nil];
+    #endif
 
     return self;
 }
 
 - (void)dealloc {
     [self _stopMonitoringNetworkReachability];
+    #if TARGET_OS_WATCH
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    #endif
 }
 
 ///--------------------------------------
@@ -387,6 +394,7 @@ NSTimeInterval const PFEventuallyQueueDefaultTimeoutRetryInterval = 600.0f;
 #pragma mark - Accessors
 ///--------------------------------------
 
+#if !TARGET_OS_WATCH
 /** Manually sets the network connection status. */
 - (void)setConnected:(BOOL)connected {
     BFTaskCompletionSource *barrier = [BFTaskCompletionSource taskCompletionSource];
@@ -410,6 +418,29 @@ NSTimeInterval const PFEventuallyQueueDefaultTimeoutRetryInterval = 600.0f;
     }
     [barrier.task waitForResult:nil];
 }
+#else
+/** Manually sets the network connection status. */
+- (void)setConnected:(BOOL)connected {
+    BFTaskCompletionSource *barrier = [BFTaskCompletionSource taskCompletionSource];
+    dispatch_async(_processingQueue, ^{
+        dispatch_sync(_synchronizationQueue, ^{
+            _connected = connected;
+            if (connected) {
+                dispatch_source_merge_data(_processingQueueSource, 1);
+            }
+        });
+        barrier.result = nil;
+    });
+    if (connected) {
+        dispatch_async(_synchronizationQueue, ^{
+            if (_retryingSemaphore) {
+                dispatch_semaphore_signal(_retryingSemaphore);
+            }
+        });
+    }
+    [barrier.task waitForResult:nil];
+}
+#endif
 
 ///--------------------------------------
 #pragma mark - Test Helper Method
@@ -458,6 +489,12 @@ NSTimeInterval const PFEventuallyQueueDefaultTimeoutRetryInterval = 600.0f;
     if (self.monitorsReachability) {
         self.connected = (state != PFReachabilityStateNotReachable);
     }
+}
+
+#else
+
+- (void)manualStartSync{
+    self.connected = YES;
 }
 
 #endif

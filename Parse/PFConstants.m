@@ -30,3 +30,8 @@ NSString *const PFNetworkDidReceiveURLResponseNotification = @"PFNetworkDidRecei
 NSString *const PFNetworkNotificationURLRequestUserInfoKey = @"PFNetworkNotificationURLRequestUserInfoKey";
 NSString *const PFNetworkNotificationURLResponseUserInfoKey = @"PFNetworkNotificationURLResponseUserInfoKey";
 NSString *const PFNetworkNotificationURLResponseBodyUserInfoKey = @"PFNetworkNotificationURLResponseBodyUserInfoKey";
+
+///--------------------------------------
+#pragma mark - Manually Start Syncing
+///--------------------------------------
+NSString *const PFManullyStartSyncing = @"PFManullyStartSyncing";
